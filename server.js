@@ -8,7 +8,7 @@ const app = express();
 // Configuration CORS
 const corsOptions = {
   origin: [
-    'https://roomtn.netlify.app',  // Votre frontend en production
+    'https://tnroom.netlify.app/',  // Votre frontend en production
     'http://localhost:5173'        // Pour le développement local
   ],
   credentials: true,
