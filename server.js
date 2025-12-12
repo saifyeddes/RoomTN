@@ -5,6 +5,9 @@ const cors = require('cors');
 // Création de l'application Express
 const app = express();
 
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
 // Configuration CORS
 const corsOptions = {
   origin: [

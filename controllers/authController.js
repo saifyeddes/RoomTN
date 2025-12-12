@@ -9,34 +9,28 @@ const generateToken = (user) => {
   );
 };
 
-exports.login = async (req, res) => {
+exports.loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Vérifier si l'utilisateur existe
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
-    }
+    if (!user) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
 
-    // Vérifier le mot de passe
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+    if (!isMatch) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+
+    // Autoriser uniquement admin et super_admin
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Accès réservé aux administrateurs' });
     }
 
-    // Autoriser admin et super_admin; bloquer admin non approuvé
-    if (user.role !== 'admin' && user.role !== 'super_admin') {
-      return res.status(403).json({ message: 'Accès non autorisé' });
-    }
-    if (user.role === 'admin' && user.isApproved === false) {
+    // Vérifier si admin approuvé
+    if (user.role === 'admin' && !user.isApproved) {
       return res.status(403).json({ message: "Compte admin en attente d'approbation" });
     }
 
-    // Générer le token JWT
     const token = generateToken(user);
 
-    // Renvoyer la réponse
     res.json({
       token,
       user: {
@@ -47,11 +41,13 @@ exports.login = async (req, res) => {
         isApproved: user.isApproved
       }
     });
+
   } catch (error) {
-    console.error('Erreur de connexion:', error);
+    console.error('Erreur login admin:', error);
     res.status(500).json({ message: 'Erreur du serveur' });
   }
 };
+
 
 exports.getCurrentUser = (req, res) => {
   res.json(req.user);
