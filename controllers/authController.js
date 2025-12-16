@@ -1,38 +1,25 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
 exports.loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // sécurité minimale
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email et mot de passe requis' });
-    }
-
-    // chercher admin dans users
-    const user = await User.findOne({ email });
-    if (!user) {
+    // ✅ IDENTIFIANTS HARDCODÉS
+    if (email !== 'admin@room.tn' || password !== 'admin@room.tn') {
       return res.status(401).json({ message: 'Identifiants invalides' });
     }
 
-    // comparer mot de passe
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Identifiants invalides' });
-    }
-
-    // token simple
+    // ✅ TOKEN SIMPLE
     const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET,
+      { email: 'admin@room.tn', role: 'admin' },
+      process.env.JWT_SECRET || 'secret123',
       { expiresIn: '24h' }
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       token,
       user: {
-        email: user.email
+        email: 'admin@room.tn'
       }
     });
 

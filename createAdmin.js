@@ -1,44 +1,23 @@
-require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User');
-const bcrypt = require('bcryptjs');
+require('dotenv').config();
 
-const createAdmin = async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      dbName: "roomtn"
+mongoose.connect(process.env.MONGO_URI)
+  .then(async () => {
+    console.log('MongoDB connected');
+
+    const admin = await User.create({
+      email: 'admin@room.tn',
+      password: 'admin@room.tn',
+      full_name: 'Admin RoomTN'
     });
 
-    console.log('Connecté à MongoDB');
+    console.log('ADMIN CRÉÉ AVEC SUCCÈS');
+    console.log(admin.email);
 
-    let admin = await User.findOne({ email: 'admin@room.tn' });
-
-    if (admin) {
-      admin.role = 'super_admin';
-      admin.isApproved = true;
-
-      // Si tu veux réinitialiser le mot de passe à "admin@room.tn"
-      admin.password = 'admin@room.tn'; // sera hashé automatiquement par pre-save
-      await admin.save();
-
-      console.log('Admin existant mis à jour : rôle super_admin et mot de passe hashé.');
-    } else {
-      const newAdmin = new User({
-        email: 'admin@room.tn',
-        password: 'admin@room.tn',
-        full_name: 'Super Administrateur',
-        role: 'super_admin',
-        isApproved: true
-      });
-      await newAdmin.save();
-      console.log('Admin créé avec succès.');
-    }
-
-  } catch (error) {
-    console.error('Erreur lors de la création/mise à jour de l\'admin :', error);
-  }
-};
-
-createAdmin();
+    process.exit();
+  })
+  .catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
