@@ -9,11 +9,14 @@ app.use(express.json());
 // ✅ CORS
 app.use(cors({
   origin: [
-    'https://roomtn.netlify.app',
+    'https://tnroom.netlify.app',
     'http://localhost:5173'
   ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
 
 // ✅ ROUTES
 const authRoutes = require('./routes/auth');
