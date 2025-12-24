@@ -81,9 +81,31 @@ exports.getBestSellers = async (req, res) => {
 // Créer un nouveau produit
 exports.createProduct = async (req, res) => {
   try {
-    const { name, description, price, category, colors, sizes, stock, is_featured, is_new } = req.body;
-    
-    // Traiter les images téléchargées
+    const {
+      name,
+      description,
+      price,
+      category,
+      colors,
+      sizes,
+      stock,
+      is_featured,
+      is_new
+    } = req.body;
+
+    // ✅ Sécurité champs obligatoires
+    if (!name || !price || !category) {
+      return res.status(400).json({ message: 'Champs obligatoires manquants' });
+    }
+
+    // ✅ Sécuriser colors / sizes
+    const safeColors =
+      typeof colors === 'string' ? JSON.parse(colors) : colors || [];
+
+    const safeSizes =
+      typeof sizes === 'string' ? JSON.parse(sizes) : sizes || [];
+
+    // ✅ Images (optionnelles)
     const images = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
@@ -94,27 +116,28 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    // Créer le produit
     const product = new Product({
       name,
       description,
-      price: parseFloat(price),
+      price: Number(price),
       category,
-      colors: JSON.parse(colors || '[]'),
-      sizes: JSON.parse(sizes || '[]'),
-      stock: parseInt(stock, 10),
-      is_featured: is_featured === 'true',
-      is_new: is_new === 'true',
+      colors: safeColors,
+      sizes: safeSizes,
+      stock: Number(stock) || 0,
+      is_featured: is_featured === 'true' || is_featured === true,
+      is_new: is_new === 'true' || is_new === true,
       images
     });
 
     await product.save();
     res.status(201).json(product);
+
   } catch (error) {
-    console.error('Erreur lors de la création du produit:', error);
-    res.status(500).json({ message: 'Erreur lors de la création du produit' });
+    console.error('CREATE PRODUCT ERROR:', error);
+    res.status(500).json({ message: error.message });
   }
 };
+
 
 // Récupérer tous les produits
 exports.getAllProducts = async (req, res) => {
