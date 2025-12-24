@@ -21,6 +21,11 @@ app.use(cors({
 // ✅ ROUTES
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
+// ✅ ROUTES
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api', require('./routes/adminStats'));
+app.use('/api/products', require('./routes/products'));
+app.use('/api/orders', require('./routes/orders'));
 
 // ✅ TEST
 app.get('/', (req, res) => {
