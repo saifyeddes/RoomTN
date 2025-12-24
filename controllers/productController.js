@@ -100,7 +100,7 @@ exports.createProduct = async (req, res) => {
     } = req.body;
 
     // ✅ Sécurité champs obligatoires
-    if (!name || !price || !category) {
+    if (!name || !price ) {
       return res.status(400).json({ message: 'Champs obligatoires manquants' });
     }
 
@@ -126,7 +126,7 @@ exports.createProduct = async (req, res) => {
       name,
       description,
       price: Number(price),
-      category,
+      category: category || 'Autre', // valeur par défaut
       colors: safeColors,
       sizes: safeSizes,
       stock: Number(stock) || 0,
