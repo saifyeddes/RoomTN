@@ -99,19 +99,32 @@ exports.createProduct = async (req, res) => {
       is_new
     } = req.body;
 
-    // ✅ Sécurité champs obligatoires
-    if (!name || !price ) {
+    if (!name || !price) {
       return res.status(400).json({ message: 'Champs obligatoires manquants' });
     }
 
-    // ✅ Sécuriser colors / sizes
+    // ✅ COLORS → [{ name, code }]
     const safeColors =
-      typeof colors === 'string' ? JSON.parse(colors) : colors || [];
+      typeof colors === 'string'
+        ? JSON.parse(colors).map(c => ({
+            name: c,
+            code: '#000000'
+          }))
+        : colors || [];
 
+    // ✅ SIZES → ['S','M',...]
     const safeSizes =
-      typeof sizes === 'string' ? JSON.parse(sizes) : sizes || [];
+      typeof sizes === 'string'
+        ? JSON.parse(sizes)
+        : sizes || [];
 
-    // ✅ Images (optionnelles)
+    // ✅ CATEGORY → enum sécurisé
+    const safeCategory =
+      ['homme', 'femme', 'unisexe'].includes(category)
+        ? category
+        : 'unisexe';
+
+    // ✅ IMAGES (optionnelles)
     const images = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
@@ -124,9 +137,9 @@ exports.createProduct = async (req, res) => {
 
     const product = new Product({
       name,
-      description,
+      description: description || '',
       price: Number(price),
-      category: category || 'Autre', // valeur par défaut
+      category: safeCategory,
       colors: safeColors,
       sizes: safeSizes,
       stock: Number(stock) || 0,
@@ -143,6 +156,7 @@ exports.createProduct = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 // Récupérer tous les produits
