@@ -35,20 +35,14 @@ const upload = multer({
 
 // Middleware pour gérer le téléchargement des images
 exports.uploadImages = (req, res, next) => {
-  // ✅ Si ce n’est pas multipart/form-data, on ignore multer
-  if (!req.headers['content-type']?.includes('multipart/form-data')) {
-    return next();
-  }
-
   upload(req, res, (err) => {
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({ message: 'Erreur upload images' });
-    } else if (err) {
+    if (err) {
       return res.status(400).json({ message: err.message });
     }
     next();
   });
 };
+
 
 
 // Meilleures ventes basées sur les commandes (somme des quantités)
@@ -100,31 +94,22 @@ exports.createProduct = async (req, res) => {
     } = req.body;
 
     if (!name || !price) {
-      return res.status(400).json({ message: 'Champs obligatoires manquants' });
+      return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    // ✅ COLORS → [{ name, code }]
-    const safeColors =
-      typeof colors === 'string'
-        ? JSON.parse(colors).map(c => ({
-            name: c,
-            code: '#000000'
-          }))
-        : colors || [];
+    const safeColors = colors
+      ? JSON.parse(colors).map(c => ({
+          name: c,
+          code: '#000000'
+        }))
+      : [];
 
-    // ✅ SIZES → ['S','M',...]
-    const safeSizes =
-      typeof sizes === 'string'
-        ? JSON.parse(sizes)
-        : sizes || [];
+    const safeSizes = sizes ? JSON.parse(sizes) : [];
 
-    // ✅ CATEGORY → enum sécurisé
-    const safeCategory =
-      ['homme', 'femme', 'unisexe'].includes(category)
-        ? category
-        : 'unisexe';
+    const safeCategory = ['homme', 'femme', 'unisexe'].includes(category)
+      ? category
+      : 'unisexe';
 
-    // ✅ IMAGES (optionnelles)
     const images = [];
     if (req.files && req.files.length > 0) {
       req.files.forEach(file => {
@@ -143,8 +128,8 @@ exports.createProduct = async (req, res) => {
       colors: safeColors,
       sizes: safeSizes,
       stock: Number(stock) || 0,
-      is_featured: is_featured === 'true' || is_featured === true,
-      is_new: is_new === 'true' || is_new === true,
+      is_featured: is_featured === 'true',
+      is_new: is_new === 'true',
       images
     });
 
@@ -153,9 +138,10 @@ exports.createProduct = async (req, res) => {
 
   } catch (error) {
     console.error('CREATE PRODUCT ERROR:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: 'Erreur création produit' });
   }
 };
+
 
 
 
