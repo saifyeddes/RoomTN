@@ -35,15 +35,21 @@ const upload = multer({
 
 // Middleware pour gérer le téléchargement des images
 exports.uploadImages = (req, res, next) => {
+  // ✅ Si ce n’est pas multipart/form-data, on ignore multer
+  if (!req.headers['content-type']?.includes('multipart/form-data')) {
+    return next();
+  }
+
   upload(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      return res.status(400).json({ message: 'Erreur lors du téléchargement des images' });
+      return res.status(400).json({ message: 'Erreur upload images' });
     } else if (err) {
       return res.status(400).json({ message: err.message });
     }
     next();
   });
 };
+
 
 // Meilleures ventes basées sur les commandes (somme des quantités)
 exports.getBestSellers = async (req, res) => {
