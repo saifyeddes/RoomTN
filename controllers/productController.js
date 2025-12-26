@@ -180,62 +180,75 @@ exports.getProductById = async (req, res) => {
 // Mettre à jour un produit
 exports.updateProduct = async (req, res) => {
   try {
-    const updates = { ...req.body };
-    
-    // Traiter les images téléchargées
+    const {
+      name,
+      description,
+      price,
+      category,
+      colors,
+      sizes,
+      stock,
+      is_new,
+      is_featured
+    } = req.body;
+
+    const updates = {};
+
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (price !== undefined) updates.price = Number(price);
+    if (category !== undefined) updates.category = category;
+    if (stock !== undefined) updates.stock = Number(stock);
+    if (is_new !== undefined) updates.is_new = is_new === 'true' || is_new === true;
+    if (is_featured !== undefined) updates.is_featured = is_featured === 'true' || is_featured === true;
+
+    // ✅ COLORS (safe)
+    if (colors) {
+      const parsedColors =
+        typeof colors === 'string'
+          ? JSON.parse(colors).map(c => ({
+              name: c,
+              code: c.startsWith('#') ? c : '#000000'
+            }))
+          : colors;
+
+      updates.colors = parsedColors;
+    }
+
+    // ✅ SIZES (safe)
+    if (sizes) {
+      updates.sizes =
+        typeof sizes === 'string'
+          ? JSON.parse(sizes)
+          : sizes;
+    }
+
+    // ✅ IMAGES (optionnel)
     if (req.files && req.files.length > 0) {
-      const images = [];
-      req.files.forEach(file => {
-        images.push({
-          url: `/uploads/${file.filename}`,
-          alt: updates.name || 'Image produit'
-        });
-      });
-      updates.images = images;
+      updates.images = req.files.map(file => ({
+        url: `/uploads/${file.filename}`,
+        alt: name || 'Product image'
+      }));
     }
-    
-    // Convertir les chaînes JSON en tableaux si nécessaire
-    if (updates.colors && typeof updates.colors === 'string') {
-      updates.colors = JSON.parse(updates.colors);
-    }
-    
-    if (updates.sizes && typeof updates.sizes === 'string') {
-      updates.sizes = JSON.parse(updates.sizes);
-    }
-    
-    // Convertir les types de données
-    if (updates.price) {
-      updates.price = parseFloat(updates.price);
-    }
-    
-    if (updates.stock) {
-      updates.stock = parseInt(updates.stock, 10);
-    }
-    
-    if (updates.is_featured) {
-      updates.is_featured = updates.is_featured === 'true';
-    }
-    
-    if (updates.is_new) {
-      updates.is_new = updates.is_new === 'true';
-    }
-    
+
     const product = await Product.findByIdAndUpdate(
       req.params.id,
-      { $set: updates },
+      updates,
       { new: true, runValidators: true }
     );
-    
+
     if (!product) {
       return res.status(404).json({ message: 'Produit non trouvé' });
     }
-    
+
     res.json(product);
+
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du produit:', error);
-    res.status(500).json({ message: 'Erreur lors de la mise à jour du produit' });
+    console.error('UPDATE PRODUCT ERROR:', error);
+    res.status(500).json({ message: error.message });
   }
 };
+
 
 // Supprimer un produit
 exports.deleteProduct = async (req, res) => {
