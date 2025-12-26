@@ -97,20 +97,15 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    // 🔵 Colors → format mongoose
-    const parsedColors = typeof colors === 'string'
+    const parsedColors = colors
       ? JSON.parse(colors).map(c => ({
           name: c,
           code: c.startsWith('#') ? c : '#000000'
         }))
       : [];
 
-    // 🔵 Sizes
-    const parsedSizes = typeof sizes === 'string'
-      ? JSON.parse(sizes)
-      : [];
+    const parsedSizes = sizes ? JSON.parse(sizes) : [];
 
-    // 🔵 Images
     const images = (req.files || []).map(file => ({
       url: `/uploads/${file.filename}`,
       alt: name
@@ -118,7 +113,7 @@ exports.createProduct = async (req, res) => {
 
     const product = new Product({
       name,
-      description,
+      description: description || '',
       price: Number(price),
       category: ['homme', 'femme', 'unisexe'].includes(category)
         ? category
@@ -139,6 +134,7 @@ exports.createProduct = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 
 // Récupérer tous les produits
