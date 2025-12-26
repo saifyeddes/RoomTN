@@ -1,23 +1,13 @@
 const mongoose = require('mongoose');
 
 const productSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-  },
-  price: {
-    type: Number,
-    required: true,
-    min: 0
-  },
+  name: { type: String, required: true, trim: true },
+  description: { type: String, default: '' },
+  price: { type: Number, required: true, min: 0 },
   category: {
     type: String,
-    required: false,
-    enum: ['homme', 'femme', 'unisexe']
+    enum: ['homme', 'femme', 'unisexe'],
+    default: 'unisexe'
   },
   colors: [{
     name: String,
@@ -31,24 +21,9 @@ const productSchema = new mongoose.Schema({
     url: String,
     alt: String
   }],
-  stock: {
-    type: Number,
-    required: true,
-    min: 0,
-    default: 0
-  },
-  is_featured: {
-    type: Boolean,
-    default: false
-  },
-  is_new: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+  stock: { type: Number, required: true, default: 0 },
+  is_featured: { type: Boolean, default: false },
+  is_new: { type: Boolean, default: false },
+}, { timestamps: true });
 
 module.exports = mongoose.model('Product', productSchema);

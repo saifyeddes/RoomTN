@@ -89,60 +89,56 @@ exports.createProduct = async (req, res) => {
       colors,
       sizes,
       stock,
-      is_featured,
-      is_new
+      is_new,
+      is_featured
     } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    const safeColors = colors
+    // 🔵 Colors → format mongoose
+    const parsedColors = typeof colors === 'string'
       ? JSON.parse(colors).map(c => ({
           name: c,
-          code: '#000000'
+          code: c.startsWith('#') ? c : '#000000'
         }))
       : [];
 
-    const safeSizes = sizes ? JSON.parse(sizes) : [];
+    // 🔵 Sizes
+    const parsedSizes = typeof sizes === 'string'
+      ? JSON.parse(sizes)
+      : [];
 
-    const safeCategory = ['homme', 'femme', 'unisexe'].includes(category)
-      ? category
-      : 'unisexe';
-
-    const images = [];
-    if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
-        images.push({
-          url: `/uploads/${file.filename}`,
-          alt: name
-        });
-      });
-    }
+    // 🔵 Images
+    const images = (req.files || []).map(file => ({
+      url: `/uploads/${file.filename}`,
+      alt: name
+    }));
 
     const product = new Product({
       name,
-      description: description || '',
+      description,
       price: Number(price),
-      category: safeCategory,
-      colors: safeColors,
-      sizes: safeSizes,
+      category: ['homme', 'femme', 'unisexe'].includes(category)
+        ? category
+        : 'unisexe',
+      colors: parsedColors,
+      sizes: parsedSizes,
       stock: Number(stock) || 0,
-      is_featured: is_featured === 'true',
       is_new: is_new === 'true',
+      is_featured: is_featured === 'true',
       images
     });
 
     await product.save();
     res.status(201).json(product);
 
-  } catch (error) {
-    console.error('CREATE PRODUCT ERROR:', error);
-    res.status(500).json({ message: 'Erreur création produit' });
+  } catch (err) {
+    console.error('CREATE PRODUCT ERROR:', err);
+    res.status(500).json({ message: err.message });
   }
 };
-
-
 
 
 // Récupérer tous les produits
