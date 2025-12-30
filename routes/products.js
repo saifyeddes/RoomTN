@@ -12,14 +12,14 @@ router.get('/:id', productController.getProductById);
 router.post(
   '/',
   auth,
-  productController.uploadImages,
+  upload.array('images', 5), // ✅ CLOUDINARY
   productController.createProduct
 );
 
 router.put(
   '/:id',
   auth,
-  productController.uploadImages,
+  upload.array('images', 5),
   productController.updateProduct
 );
 

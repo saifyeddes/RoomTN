@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
 
 // Configuration de multer pour le téléchargement d'images
 const multer = require('multer');
@@ -79,6 +80,8 @@ exports.getBestSellers = async (req, res) => {
 };
 
 // Créer un nouveau produit
+
+// CREATE PRODUCT
 exports.createProduct = async (req, res) => {
   try {
     const {
@@ -98,42 +101,38 @@ exports.createProduct = async (req, res) => {
     }
 
     const parsedColors = colors
-      ? JSON.parse(colors).map(c => ({
-          name: c,
-          code: c.startsWith('#') ? c : '#000000'
-        }))
+      ? JSON.parse(colors).map(c => ({ name: c, code: c }))
       : [];
 
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
 
     const images = (req.files || []).map(file => ({
-      url: `/uploads/${file.filename}`,
-      alt: name
+      url: file.path,   // ✅ URL CLOUDINARY
+      alt: name,
     }));
 
     const product = new Product({
       name,
-      description: description || '',
+      description,
       price: Number(price),
-      category: ['homme', 'femme', 'unisexe'].includes(category)
-        ? category
-        : 'unisexe',
+      category,
       colors: parsedColors,
       sizes: parsedSizes,
       stock: Number(stock) || 0,
       is_new: is_new === 'true',
       is_featured: is_featured === 'true',
-      images
+      images,
     });
 
     await product.save();
     res.status(201).json(product);
 
-  } catch (err) {
-    console.error('CREATE PRODUCT ERROR:', err);
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
   }
 };
+
 
 
 
