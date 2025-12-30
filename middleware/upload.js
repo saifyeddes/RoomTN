@@ -7,7 +7,6 @@ const storage = new CloudinaryStorage({
   params: {
     folder: 'roomtn/products',
     allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
-    transformation: [{ width: 800, height: 800, crop: 'limit' }],
   },
 });
 
