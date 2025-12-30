@@ -4,6 +4,18 @@ const Order = require('../models/Order');
 // =======================
 // BEST SELLERS
 // =======================
+const multer = require('multer');
+
+// =======================
+// MULTER (TEMP STORAGE)
+// =======================
+const upload = multer({
+  storage: multer.memoryStorage(), // requis pour Cloudinary
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+exports.uploadImages = upload.array('images', 5);
+
 exports.getBestSellers = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 12;
