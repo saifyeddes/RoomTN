@@ -47,15 +47,22 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    const parsedColors = colors ? JSON.parse(colors).map(c => ({
-      name: c,
-      code: c.startsWith('#') ? c : '#000000'
-    })) : [];
+    const parsedColors =
+      typeof colors === 'string'
+        ? JSON.parse(colors)
+        : Array.isArray(colors)
+        ? colors
+        : [];
 
-    const parsedSizes = sizes ? JSON.parse(sizes) : [];
+    const parsedSizes =
+      typeof sizes === 'string'
+        ? JSON.parse(sizes)
+        : Array.isArray(sizes)
+        ? sizes
+        : [];
 
     const images = (req.files || []).map(file => ({
-      url: file.path, // ✅ URL CLOUDINARY
+      url: file.path,   // Cloudinary URL
       alt: name
     }));
 
@@ -63,22 +70,23 @@ exports.createProduct = async (req, res) => {
       name,
       description,
       price: Number(price),
-      category,
+      category: category || 'unisexe',
       colors: parsedColors,
       sizes: parsedSizes,
       stock: Number(stock) || 0,
-      is_new: is_new === 'true',
-      is_featured: is_featured === 'true',
+      is_new: is_new === 'true' || is_new === true,
+      is_featured: is_featured === 'true' || is_featured === true,
       images
     });
 
     res.status(201).json(product);
 
   } catch (err) {
-    console.error(err);
+    console.error('CREATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // =======================
 // GET ALL PRODUCTS
