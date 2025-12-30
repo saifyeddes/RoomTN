@@ -2,7 +2,6 @@ const Product = require('../models/Product');
 const path = require('path');
 const fs = require('fs');
 const Order = require('../models/Order');
-const Product = require('../models/Product');
 
 // Configuration de multer pour le téléchargement d'images
 const multer = require('multer');
