@@ -1,51 +1,37 @@
 const Product = require('../models/Product');
 const Order = require('../models/Order');
-
-// =======================
-// BEST SELLERS
-// =======================
+const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
-// =======================
-// MULTER (TEMP STORAGE)
-// =======================
+/* =======================
+   UTILS
+======================= */
+const safeJSON = (value, fallback = []) => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
+/* =======================
+   MULTER (MEMORY)
+======================= */
 const upload = multer({
-  storage: multer.memoryStorage(), // requis pour Cloudinary
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 exports.uploadImages = upload.array('images', 5);
 
-exports.getBestSellers = async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit, 10) || 12;
-
-    const top = await Order.aggregate([
-      { $unwind: '$items' },
-      { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
-      { $sort: { totalSold: -1 } },
-      { $limit: limit },
-    ]);
-
-    const ids = top.map(t => t._id);
-    if (!ids.length) return res.json([]);
-
-    const products = await Product.find({ _id: { $in: ids } });
-    res.json(products);
-
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// =======================
-// CREATE PRODUCT
-// =======================
+/* =======================
+   CREATE PRODUCT
+======================= */
 exports.createProduct = async (req, res) => {
   try {
     const {
       name,
-      description,
+      description = '',
       price,
       category,
       colors,
@@ -59,30 +45,27 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    const parsedColors =
-      typeof colors === 'string'
-        ? JSON.parse(colors).map(c => ({
-            name: c,
-            code: c.startsWith('#') ? c : '#000000'
-          }))
-        : Array.isArray(colors)
-        ? colors.map(c => ({
-            name: c,
-            code: c.startsWith('#') ? c : '#000000'
-          }))
-        : [];
+    const parsedColors = safeJSON(colors)
+      .filter(c => typeof c === 'string' && c.trim())
+      .map(c => ({
+        name: c,
+        code: c.startsWith('#') ? c : '#000000'
+      }));
 
-    const parsedSizes =
-      typeof sizes === 'string'
-        ? JSON.parse(sizes)
-        : Array.isArray(sizes)
-        ? sizes
-        : [];
+    const parsedSizes = safeJSON(sizes);
 
-    const images = (req.files || []).map(file => ({
-      url: file.path,
-      alt: name
-    }));
+    const images = [];
+    for (const file of req.files || []) {
+      const result = await cloudinary.uploader.upload(
+        `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+        { folder: 'products' }
+      );
+
+      images.push({
+        url: result.secure_url,
+        alt: name
+      });
+    }
 
     const product = await Product.create({
       name,
@@ -105,48 +88,69 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-
-
-// =======================
-// GET ALL PRODUCTS
-// =======================
+/* =======================
+   GET ALL PRODUCTS
+======================= */
 exports.getAllProducts = async (req, res) => {
   const products = await Product.find().sort({ createdAt: -1 });
   res.json(products);
 };
 
-// =======================
-// GET PRODUCT BY ID
-// =======================
+/* =======================
+   GET PRODUCT BY ID
+======================= */
 exports.getProductById = async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
   res.json(product);
 };
 
-// =======================
-// UPDATE PRODUCT
-// =======================
+/* =======================
+   UPDATE PRODUCT
+======================= */
 exports.updateProduct = async (req, res) => {
   try {
-    const updates = { ...req.body };
+    const updates = {};
 
-    if (updates.colors) {
-      updates.colors = JSON.parse(updates.colors).map(c => ({
-        name: c,
-        code: c.startsWith('#') ? c : '#000000'
-      }));
+    const fields = [
+      'name', 'description', 'category',
+      'is_new', 'is_featured'
+    ];
+
+    fields.forEach(f => {
+      if (req.body[f] !== undefined) updates[f] = req.body[f];
+    });
+
+    if (req.body.price !== undefined) updates.price = Number(req.body.price);
+    if (req.body.stock !== undefined) updates.stock = Number(req.body.stock);
+
+    if (req.body.colors) {
+      updates.colors = safeJSON(req.body.colors)
+        .filter(c => typeof c === 'string' && c.trim())
+        .map(c => ({
+          name: c,
+          code: c.startsWith('#') ? c : '#000000'
+        }));
     }
 
-    if (updates.sizes) {
-      updates.sizes = JSON.parse(updates.sizes);
+    if (req.body.sizes) {
+      updates.sizes = safeJSON(req.body.sizes);
     }
 
     if (req.files?.length) {
-      updates.images = req.files.map(file => ({
-        url: file.path, // ✅ CLOUDINARY
-        alt: updates.name || 'Product'
-      }));
+      updates.images = [];
+
+      for (const file of req.files) {
+        const result = await cloudinary.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+          { folder: 'products' }
+        );
+
+        updates.images.push({
+          url: result.secure_url,
+          alt: updates.name || 'Product'
+        });
+      }
     }
 
     const product = await Product.findByIdAndUpdate(
@@ -158,13 +162,14 @@ exports.updateProduct = async (req, res) => {
     res.json(product);
 
   } catch (err) {
+    console.error('UPDATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// =======================
-// DELETE PRODUCT
-// =======================
+/* =======================
+   DELETE PRODUCT
+======================= */
 exports.deleteProduct = async (req, res) => {
   await Product.findByIdAndDelete(req.params.id);
   res.json({ message: 'Produit supprimé' });
