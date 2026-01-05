@@ -3,6 +3,16 @@ const Order = require('../models/Order');
 const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
+const safeJSON = (value, fallback = []) => {
+  try {
+    if (!value) return fallback;
+    if (Array.isArray(value)) return value;
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+};
+
 // =======================
 // MULTER (MEMORY)
 // =======================
