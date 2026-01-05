@@ -29,10 +29,29 @@ exports.uploadImages = upload.array('images', 5);
    NORMALIZERS
 ======================= */
 const normalizeColors = (colors) =>
-  safeArray(colors).map(c => ({
-    name: c,
-    code: c.startsWith('#') ? c : '#000000',
-  }));
+  safeArray(colors).map(c => {
+    // si string
+    if (typeof c === 'string') {
+      return {
+        name: c,
+        code: c.startsWith('#') ? c : '#000000',
+      };
+    }
+
+    // si objet {name, code}
+    if (typeof c === 'object' && c !== null) {
+      return {
+        name: c.name || 'Color',
+        code:
+          typeof c.code === 'string' && c.code.startsWith('#')
+            ? c.code
+            : '#000000',
+      };
+    }
+
+    return null;
+  }).filter(Boolean);
+
 
 const normalizeSizes = (sizes) => safeArray(sizes);
 
@@ -67,18 +86,19 @@ exports.createProduct = async (req, res) => {
       images.push({ url: result.secure_url, alt: name });
     }
 
-    const product = await Product.create({
-      name,
-      description,
-      price: Number(price),
-      category: category || 'unisexe',
-      colors: normalizeColors(colors),
-      sizes: normalizeSizes(sizes),
-      stock: Number(stock) || 0,
-      is_new: is_new === 'true' || is_new === true,
-      is_featured: is_featured === 'true' || is_featured === true,
-      images,
-    });
+const product = await Product.create({
+  name,
+  description,
+  price: Number(price),
+  category: category || 'unisexe',
+  colors: normalizeColors(colors),
+  sizes: normalizeSizes(sizes),
+  stock: Number(stock) || 0,
+  is_new: is_new === 'true' || is_new === true,
+  is_featured: is_featured === 'true' || is_featured === true,
+  images,
+});
+
 
     res.status(201).json(product);
 
