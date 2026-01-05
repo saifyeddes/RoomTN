@@ -3,16 +3,6 @@ const Order = require('../models/Order');
 const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
-const safeJSON = (value, fallback = []) => {
-  try {
-    if (!value) return fallback;
-    if (Array.isArray(value)) return value;
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-};
-
 // =======================
 // MULTER (MEMORY)
 // =======================
@@ -27,34 +17,18 @@ exports.uploadImages = upload.array('images', 5);
 // =======================
 const normalizeColors = (colors) => {
   if (!colors) return [];
-
   let arr = [];
+
   try {
     arr = typeof colors === 'string' ? JSON.parse(colors) : colors;
   } catch {
     return [];
   }
 
-  return arr
-    .filter(Boolean)
-    .map(c => {
-      if (typeof c === 'string') {
-        return {
-          name: c,
-          code: c.startsWith('#') ? c : '#000000'
-        };
-      }
-      if (typeof c === 'object') {
-        return {
-          name: c.name || 'Color',
-          code: typeof c.code === 'string' && c.code.startsWith('#')
-            ? c.code
-            : '#000000'
-        };
-      }
-      return null;
-    })
-    .filter(Boolean);
+  return arr.map(c => ({
+    name: c,
+    code: c.startsWith('#') ? c : '#000000'
+  }));
 };
 
 const normalizeSizes = (sizes) => {
@@ -87,6 +61,7 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
+    // Upload images Cloudinary
     const images = [];
     for (const file of req.files || []) {
       const result = await cloudinary.uploader.upload(
@@ -101,15 +76,16 @@ exports.createProduct = async (req, res) => {
       description,
       price: Number(price),
       category: category || 'unisexe',
-      colors: normalizeColors(safeArray(colors)),
-      sizes: safeArray(sizes),
+      colors: normalizeColors(colors),
+      sizes: normalizeSizes(sizes),
       stock: Number(stock) || 0,
-      is_new: is_new === 'true' || is_new === true,
-      is_featured: is_featured === 'true' || is_featured === true,
+      is_new: is_new === 'true',
+      is_featured: is_featured === 'true',
       images
     });
 
     res.status(201).json(product);
+
   } catch (err) {
     console.error('CREATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
@@ -123,13 +99,8 @@ exports.updateProduct = async (req, res) => {
   try {
     const updates = { ...req.body };
 
-    if (updates.colors) {
-      updates.colors = normalizeColors(updates.colors);
-    }
-
-    if (updates.sizes) {
-      updates.sizes = normalizeSizes(updates.sizes);
-    }
+    if (updates.colors) updates.colors = normalizeColors(updates.colors);
+    if (updates.sizes) updates.sizes = normalizeSizes(updates.sizes);
 
     if (req.files?.length) {
       updates.images = [];
@@ -152,6 +123,7 @@ exports.updateProduct = async (req, res) => {
     );
 
     res.json(product);
+
   } catch (err) {
     console.error('UPDATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
@@ -173,20 +145,16 @@ exports.getProductById = async (req, res) => {
 };
 
 exports.getBestSellers = async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 12;
-    const top = await Order.aggregate([
-      { $unwind: '$items' },
-      { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
-      { $sort: { totalSold: -1 } },
-      { $limit: limit }
-    ]);
-    const ids = top.map(t => t._id);
-    const products = await Product.find({ _id: { $in: ids } });
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  const top = await Order.aggregate([
+    { $unwind: '$items' },
+    { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
+    { $sort: { totalSold: -1 } },
+    { $limit: 12 }
+  ]);
+
+  const ids = top.map(t => t._id);
+  const products = await Product.find({ _id: { $in: ids } });
+  res.json(products);
 };
 
 exports.deleteProduct = async (req, res) => {
