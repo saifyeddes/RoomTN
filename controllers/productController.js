@@ -61,9 +61,15 @@ exports.createProduct = async (req, res) => {
 
     const parsedColors =
       typeof colors === 'string'
-        ? JSON.parse(colors)
+        ? JSON.parse(colors).map(c => ({
+            name: c,
+            code: c.startsWith('#') ? c : '#000000'
+          }))
         : Array.isArray(colors)
-        ? colors
+        ? colors.map(c => ({
+            name: c,
+            code: c.startsWith('#') ? c : '#000000'
+          }))
         : [];
 
     const parsedSizes =
@@ -74,7 +80,7 @@ exports.createProduct = async (req, res) => {
         : [];
 
     const images = (req.files || []).map(file => ({
-      url: file.path,   // Cloudinary URL
+      url: file.path,
       alt: name
     }));
 
@@ -98,6 +104,7 @@ exports.createProduct = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 
 // =======================
