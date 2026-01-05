@@ -4,6 +4,19 @@ const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
 // =======================
+// SAFE ARRAY
+// =======================
+const safeArray = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+};
+
+// =======================
 // MULTER (MEMORY)
 // =======================
 const upload = multer({
@@ -13,32 +26,15 @@ const upload = multer({
 exports.uploadImages = upload.array('images', 5);
 
 // =======================
-// UTILS
+// NORMALIZERS
 // =======================
-const normalizeColors = (colors) => {
-  if (!colors) return [];
-  let arr = [];
-
-  try {
-    arr = typeof colors === 'string' ? JSON.parse(colors) : colors;
-  } catch {
-    return [];
-  }
-
-  return arr.map(c => ({
+const normalizeColors = (colors) =>
+  safeArray(colors).map(c => ({
     name: c,
-    code: c.startsWith('#') ? c : '#000000'
+    code: c.startsWith('#') ? c : '#000000',
   }));
-};
 
-const normalizeSizes = (sizes) => {
-  if (!sizes) return [];
-  try {
-    return typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
-  } catch {
-    return [];
-  }
-};
+const normalizeSizes = (sizes) => safeArray(sizes);
 
 // =======================
 // CREATE PRODUCT
@@ -54,14 +50,14 @@ exports.createProduct = async (req, res) => {
       sizes,
       stock,
       is_new,
-      is_featured
+      is_featured,
     } = req.body;
 
     if (!name || !price) {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    // Upload images Cloudinary
+    // Cloudinary
     const images = [];
     for (const file of req.files || []) {
       const result = await cloudinary.uploader.upload(
@@ -78,14 +74,13 @@ exports.createProduct = async (req, res) => {
       category: category || 'unisexe',
       colors: normalizeColors(colors),
       sizes: normalizeSizes(sizes),
-      stock: Number(stock) || 0,
-      is_new: is_new === 'true',
-      is_featured: is_featured === 'true',
-      images
+      stock: Number(stock),
+      is_new: is_new === 'true' || is_new === true,
+      is_featured: is_featured === 'true' || is_featured === true,
+      images,
     });
 
     res.status(201).json(product);
-
   } catch (err) {
     console.error('CREATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
