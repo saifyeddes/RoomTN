@@ -3,61 +3,67 @@ const Order = require('../models/Order');
 const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
-/* =======================
-   UTILS
-======================= */
-const safeJSON = (value, fallback = []) => {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-};
-
-/* =======================
-   MULTER (MEMORY)
-======================= */
+// =======================
+// MULTER (MEMORY)
+// =======================
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
-
 exports.uploadImages = upload.array('images', 5);
 
 // =======================
-// BEST SELLERS
+// UTILS
 // =======================
-exports.getBestSellers = async (req, res) => {
+const normalizeColors = (colors) => {
+  if (!colors) return [];
+
+  let arr = [];
   try {
-    const limit = parseInt(req.query.limit, 10) || 12;
+    arr = typeof colors === 'string' ? JSON.parse(colors) : colors;
+  } catch {
+    return [];
+  }
 
-    const top = await Order.aggregate([
-      { $unwind: '$items' },
-      { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
-      { $sort: { totalSold: -1 } },
-      { $limit: limit },
-    ]);
+  return arr
+    .filter(Boolean)
+    .map(c => {
+      if (typeof c === 'string') {
+        return {
+          name: c,
+          code: c.startsWith('#') ? c : '#000000'
+        };
+      }
+      if (typeof c === 'object') {
+        return {
+          name: c.name || 'Color',
+          code: typeof c.code === 'string' && c.code.startsWith('#')
+            ? c.code
+            : '#000000'
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+};
 
-    const ids = top.map(t => t._id);
-    if (!ids.length) return res.json([]);
-
-    const products = await Product.find({ _id: { $in: ids } });
-    res.json(products);
-
-  } catch (err) {
-    console.error('BEST SELLERS ERROR:', err);
-    res.status(500).json({ message: err.message });
+const normalizeSizes = (sizes) => {
+  if (!sizes) return [];
+  try {
+    return typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+  } catch {
+    return [];
   }
 };
 
-/* =======================
-   CREATE PRODUCT
-======================= */
+// =======================
+// CREATE PRODUCT
+// =======================
 exports.createProduct = async (req, res) => {
   try {
     const {
       name,
-      description = '',
+      description,
       price,
       category,
       colors,
@@ -71,26 +77,13 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    const parsedColors = safeJSON(colors)
-      .filter(c => typeof c === 'string' && c.trim())
-      .map(c => ({
-        name: c,
-        code: c.startsWith('#') ? c : '#000000'
-      }));
-
-    const parsedSizes = safeJSON(sizes);
-
     const images = [];
     for (const file of req.files || []) {
       const result = await cloudinary.uploader.upload(
         `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
         { folder: 'products' }
       );
-
-      images.push({
-        url: result.secure_url,
-        alt: name
-      });
+      images.push({ url: result.secure_url, alt: name });
     }
 
     const product = await Product.create({
@@ -98,8 +91,8 @@ exports.createProduct = async (req, res) => {
       description,
       price: Number(price),
       category: category || 'unisexe',
-      colors: parsedColors,
-      sizes: parsedSizes,
+      colors: normalizeColors(colors),
+      sizes: normalizeSizes(sizes),
       stock: Number(stock) || 0,
       is_new: is_new === 'true' || is_new === true,
       is_featured: is_featured === 'true' || is_featured === true,
@@ -107,71 +100,34 @@ exports.createProduct = async (req, res) => {
     });
 
     res.status(201).json(product);
-
   } catch (err) {
     console.error('CREATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-/* =======================
-   GET ALL PRODUCTS
-======================= */
-exports.getAllProducts = async (req, res) => {
-  const products = await Product.find().sort({ createdAt: -1 });
-  res.json(products);
-};
-
-/* =======================
-   GET PRODUCT BY ID
-======================= */
-exports.getProductById = async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
-  res.json(product);
-};
-
-/* =======================
-   UPDATE PRODUCT
-======================= */
+// =======================
+// UPDATE PRODUCT
+// =======================
 exports.updateProduct = async (req, res) => {
   try {
-    const updates = {};
+    const updates = { ...req.body };
 
-    const fields = [
-      'name', 'description', 'category',
-      'is_new', 'is_featured'
-    ];
-
-    fields.forEach(f => {
-      if (req.body[f] !== undefined) updates[f] = req.body[f];
-    });
-
-    if (req.body.price !== undefined) updates.price = Number(req.body.price);
-    if (req.body.stock !== undefined) updates.stock = Number(req.body.stock);
-
-    if (req.body.colors) {
-      updates.colors = safeJSON(req.body.colors)
-        .filter(c => typeof c === 'string' && c.trim())
-        .map(c => ({
-          name: c,
-          code: c.startsWith('#') ? c : '#000000'
-        }));
+    if (updates.colors) {
+      updates.colors = normalizeColors(updates.colors);
     }
 
-    if (req.body.sizes) {
-      updates.sizes = safeJSON(req.body.sizes);
+    if (updates.sizes) {
+      updates.sizes = normalizeSizes(updates.sizes);
     }
 
     if (req.files?.length) {
       updates.images = [];
-
       for (const file of req.files) {
         const result = await cloudinary.uploader.upload(
           `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
           { folder: 'products' }
         );
-
         updates.images.push({
           url: result.secure_url,
           alt: updates.name || 'Product'
@@ -186,16 +142,43 @@ exports.updateProduct = async (req, res) => {
     );
 
     res.json(product);
-
   } catch (err) {
     console.error('UPDATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-/* =======================
-   DELETE PRODUCT
-======================= */
+// =======================
+// GETTERS
+// =======================
+exports.getAllProducts = async (_, res) => {
+  const products = await Product.find().sort({ createdAt: -1 });
+  res.json(products);
+};
+
+exports.getProductById = async (req, res) => {
+  const product = await Product.findById(req.params.id);
+  if (!product) return res.status(404).json({ message: 'Produit non trouvé' });
+  res.json(product);
+};
+
+exports.getBestSellers = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 12;
+    const top = await Order.aggregate([
+      { $unwind: '$items' },
+      { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
+      { $sort: { totalSold: -1 } },
+      { $limit: limit }
+    ]);
+    const ids = top.map(t => t._id);
+    const products = await Product.find({ _id: { $in: ids } });
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.deleteProduct = async (req, res) => {
   await Product.findByIdAndDelete(req.params.id);
   res.json({ message: 'Produit supprimé' });
