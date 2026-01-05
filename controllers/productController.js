@@ -3,9 +3,9 @@ const Order = require('../models/Order');
 const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 
-// =======================
-// SAFE ARRAY
-// =======================
+/* =======================
+   SAFE ARRAY
+======================= */
 const safeArray = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -16,18 +16,18 @@ const safeArray = (value) => {
   }
 };
 
-// =======================
-// MULTER (MEMORY)
-// =======================
+/* =======================
+   MULTER (MEMORY)
+======================= */
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 exports.uploadImages = upload.array('images', 5);
 
-// =======================
-// NORMALIZERS
-// =======================
+/* =======================
+   NORMALIZERS
+======================= */
 const normalizeColors = (colors) =>
   safeArray(colors).map(c => ({
     name: c,
@@ -36,9 +36,9 @@ const normalizeColors = (colors) =>
 
 const normalizeSizes = (sizes) => safeArray(sizes);
 
-// =======================
-// CREATE PRODUCT
-// =======================
+/* =======================
+   CREATE PRODUCT
+======================= */
 exports.createProduct = async (req, res) => {
   try {
     const {
@@ -57,7 +57,7 @@ exports.createProduct = async (req, res) => {
       return res.status(400).json({ message: 'Nom et prix obligatoires' });
     }
 
-    // Cloudinary
+    // Upload images to Cloudinary
     const images = [];
     for (const file of req.files || []) {
       const result = await cloudinary.uploader.upload(
@@ -74,22 +74,23 @@ exports.createProduct = async (req, res) => {
       category: category || 'unisexe',
       colors: normalizeColors(colors),
       sizes: normalizeSizes(sizes),
-      stock: Number(stock),
+      stock: Number(stock) || 0,
       is_new: is_new === 'true' || is_new === true,
       is_featured: is_featured === 'true' || is_featured === true,
       images,
     });
 
     res.status(201).json(product);
+
   } catch (err) {
     console.error('CREATE PRODUCT ERROR:', err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// =======================
-// UPDATE PRODUCT
-// =======================
+/* =======================
+   UPDATE PRODUCT
+======================= */
 exports.updateProduct = async (req, res) => {
   try {
     const updates = { ...req.body };
@@ -125,9 +126,9 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
-// =======================
-// GETTERS
-// =======================
+/* =======================
+   GETTERS
+======================= */
 exports.getAllProducts = async (_, res) => {
   const products = await Product.find().sort({ createdAt: -1 });
   res.json(products);
@@ -139,7 +140,7 @@ exports.getProductById = async (req, res) => {
   res.json(product);
 };
 
-exports.getBestSellers = async (req, res) => {
+exports.getBestSellers = async (_, res) => {
   const top = await Order.aggregate([
     { $unwind: '$items' },
     { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
