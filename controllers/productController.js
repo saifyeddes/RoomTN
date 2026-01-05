@@ -24,6 +24,32 @@ const upload = multer({
 
 exports.uploadImages = upload.array('images', 5);
 
+// =======================
+// BEST SELLERS
+// =======================
+exports.getBestSellers = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 12;
+
+    const top = await Order.aggregate([
+      { $unwind: '$items' },
+      { $group: { _id: '$items.product_id', totalSold: { $sum: '$items.quantity' } } },
+      { $sort: { totalSold: -1 } },
+      { $limit: limit },
+    ]);
+
+    const ids = top.map(t => t._id);
+    if (!ids.length) return res.json([]);
+
+    const products = await Product.find({ _id: { $in: ids } });
+    res.json(products);
+
+  } catch (err) {
+    console.error('BEST SELLERS ERROR:', err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 /* =======================
    CREATE PRODUCT
 ======================= */
